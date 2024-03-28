@@ -43,6 +43,8 @@ final class GenerativeModel {
   final List<SafetySetting> _safetySettings;
   final GenerationConfig? _generationConfig;
   final ApiClient _client;
+  final Uri _modelUri;
+  final bool _useVertex;
 
   /// Create a [GenerativeModel] backed by the generative model named [model].
   ///
@@ -87,7 +89,12 @@ final class GenerativeModel {
   })  : _model = _normalizeModelName(model),
         _safetySettings = safetySettings,
         _generationConfig = generationConfig,
-        _client = client;
+        _client = client,
+        _modelUri = generationConfig != null
+            ? generationConfig.vertexConfig?.modelUri ?? _baseUrl
+            : _baseUrl,
+        _useVertex =
+            generationConfig != null && generationConfig.vertexConfig != null;
 
   static const _modelsPrefix = 'models/';
   static String _normalizeModelName(String modelName) =>
@@ -95,8 +102,12 @@ final class GenerativeModel {
           ? modelName.substring(_modelsPrefix.length)
           : modelName;
 
-  Uri _taskUri(Task task) => _baseUrl.resolveUri(
-      Uri(pathSegments: [_apiVersion, 'models', '$_model:${task._name}']));
+  Uri _taskUri(Task task) =>
+      _useVertex // Vertex Uri already has the version info
+          ? Uri.https(
+              _modelUri.host, '${_modelUri.path}models/$_model:${task._name}')
+          : _modelUri.resolveUri(Uri(
+              pathSegments: [_apiVersion, 'models', '$_model:${task._name}']));
 
   /// Generates content responding to [prompt].
   ///
